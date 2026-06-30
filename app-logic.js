@@ -131,14 +131,12 @@ function mostrarToast(msg){
   toastTimer = setTimeout(() => t.classList.remove("show"), 1600);
 }
 
-/* ===== Navegación ===== */
+/* ===== Navegación (scroll a sección) ===== */
 document.getElementById("tabs").addEventListener("click", (e) => {
   const btn = e.target.closest("button[data-view]");
   if(!btn) return;
-  document.querySelectorAll("#tabs button").forEach(b => b.classList.remove("active"));
-  btn.classList.add("active");
-  document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
-  document.getElementById("view-" + btn.dataset.view).classList.add("active");
+  const target = document.getElementById("sec-" + btn.dataset.view);
+  if(target) target.scrollIntoView({ behavior: "smooth", block: "start" });
 });
 
 /* ===== Modulo simple (Picking / Camionetas): meta turno + meta hora ===== */
@@ -239,18 +237,40 @@ function renderHistorialHoras(tipo, unidad){
 }
 
 /* ===== Albaranes: rezago + hoy ===== */
+function calcularAntiguedad(fechaStr){
+  if(!fechaStr) return { texto: "sin fecha", color: "var(--text3)", bg: "var(--panel2)", dias: 0 };
+  const hoyD = new Date(HOY() + "T00:00:00");
+  const fD = new Date(fechaStr + "T00:00:00");
+  const dias = Math.round((hoyD - fD) / 86400000);
+  if(dias <= 0) return { texto: "hoy", color: "var(--green)", bg: "var(--green-bg)", dias: 0 };
+  if(dias === 1) return { texto: "atrasado 1 dia", color: "var(--amber)", bg: "var(--amber-bg)", dias: 1 };
+  return { texto: "atrasado " + dias + " dias", color: "var(--red)", bg: "var(--red-bg)", dias: dias };
+}
+
 function renderAlbaranes(){
   const lista = estado.albaranes;
   const hoy = HOY();
-  const rezago = lista.filter(a => a.fecha !== hoy);
-  const deHoy = lista.filter(a => a.fecha === hoy);
+  const conAntiguedad = lista.map(a => ({ a, ant: calcularAntiguedad(a.fecha) }));
+  const deHoyArr = conAntiguedad.filter(x => x.ant.dias === 0);
+  const atraso1Arr = conAntiguedad.filter(x => x.ant.dias === 1);
+  const atraso2Arr = conAntiguedad.filter(x => x.ant.dias >= 2);
   const totalAvance = lista.length ? Math.round(lista.reduce((s,a) => s + (a.avance||0), 0) / lista.length) : 0;
 
   let html = `<div class="card">
     <h2>Resumen del turno</h2>
     <div class="grid2">
-      <div><div class="big">${rezago.length}</div><div class="label">rezago (ayer/antier)</div></div>
-      <div><div class="big">${deHoy.length}</div><div class="label">de hoy</div></div>
+      <div style="background:var(--green-bg);border-radius:10px;padding:10px;text-align:center">
+        <div class="big" style="font-size:20px;color:var(--green)">${deHoyArr.length}</div>
+        <div class="label" style="font-size:11px">de hoy</div>
+      </div>
+      <div style="background:var(--amber-bg);border-radius:10px;padding:10px;text-align:center">
+        <div class="big" style="font-size:20px;color:var(--amber)">${atraso1Arr.length}</div>
+        <div class="label" style="font-size:11px">atrasado 1 dia</div>
+      </div>
+    </div>
+    <div style="background:var(--red-bg);border-radius:10px;padding:10px;text-align:center;margin-top:10px">
+      <div class="big" style="font-size:20px;color:var(--red)">${atraso2Arr.length}</div>
+      <div class="label" style="font-size:11px">atrasado 2 o mas dias — urgente</div>
     </div>
     <div class="row" style="margin-top:10px"><span class="label">Avance promedio</span><span class="label" style="color:${colorPct(totalAvance)}">${totalAvance}%</span></div>
     ${barra(totalAvance)}
@@ -258,13 +278,17 @@ function renderAlbaranes(){
 
   html += `<button class="primary" style="width:100%;margin-bottom:10px" data-action="add-albaran">Agregar albaran</button>`;
 
-  if(rezago.length){
-    html += `<h2 style="font-size:12px;color:var(--text2);margin:10px 0 6px">Rezago — se queda para trabajar</h2>`;
-    rezago.forEach(a => { html += renderAlbaranRow(a); });
+  if(atraso2Arr.length){
+    html += `<h2 style="font-size:12px;color:var(--red);margin:10px 0 6px"><i class="ti ti-alert-triangle" style="margin-right:4px;vertical-align:-2px"></i>Atrasado 2+ dias — urgente</h2>`;
+    atraso2Arr.forEach(x => { html += renderAlbaranRow(x.a); });
   }
-  if(deHoy.length){
-    html += `<h2 style="font-size:12px;color:var(--text2);margin:14px 0 6px">De hoy</h2>`;
-    deHoy.forEach(a => { html += renderAlbaranRow(a); });
+  if(atraso1Arr.length){
+    html += `<h2 style="font-size:12px;color:var(--amber);margin:14px 0 6px">Atrasado 1 dia</h2>`;
+    atraso1Arr.forEach(x => { html += renderAlbaranRow(x.a); });
+  }
+  if(deHoyArr.length){
+    html += `<h2 style="font-size:12px;color:var(--green);margin:14px 0 6px">De hoy</h2>`;
+    deHoyArr.forEach(x => { html += renderAlbaranRow(x.a); });
   }
   if(!lista.length){
     html += `<p class="smallnote">Aun no hay albaranes capturados en este turno.</p>`;
@@ -306,7 +330,11 @@ function renderAlbaranes(){
 
 function renderAlbaranRow(a){
   const p = a.avance || 0;
+  const ant = calcularAntiguedad(a.fecha);
   return `<div class="card albaran-row" data-id="${a.id}">
+    <div class="row" style="margin-bottom:10px">
+      <span class="pill" style="background:${ant.bg};color:${ant.color}"><i class="ti ti-clock" style="font-size:12px;margin-right:3px;vertical-align:-1px"></i>${ant.texto}</span>
+    </div>
     <div class="grid2">
       <div><label>Folio</label><input class="alb-folio" value="${a.folio||""}" placeholder="Numero de albaran"></div>
       <div><label>Fecha</label><input class="alb-fecha" type="date" value="${a.fecha}"></div>
@@ -408,7 +436,7 @@ function renderUnidadCard(u){
 }
 
 /* ===== Ferretero (rutas ferreteras tipo SFOR) ===== */
-function renderFerretero(){
+async function renderFerretero(){
   const f = estado.ferretero;
   const h = horaActual();
   const horaActualVal = f.horas[h] || {};
@@ -444,38 +472,7 @@ function renderFerretero(){
 
   document.getElementById("view-ferretero").innerHTML = html;
 
-  if(window.chartSfor){ try{ window.chartSfor.destroy(); }catch(e){} }
-  const ctxSfor = document.getElementById("chart-sfor");
-  if(ctxSfor){
-    try{
-      const valores = ETAPAS_SFOR.map(e => f.etapas[e] || 0);
-      const colores = valores.map(v => colorHexPct(pct(v, f.meta)));
-      window.chartSfor = new Chart(ctxSfor, {
-        type: "bar",
-        data: {
-          labels: ETAPAS_SFOR.map(e => ETAPAS_SFOR_LABEL[e]),
-          datasets: [{
-            data: valores,
-            backgroundColor: colores,
-            borderRadius: 6,
-            maxBarThickness: 28
-          }]
-        },
-        options: {
-          indexAxis: "y",
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { display:false } },
-          scales: {
-            x: { beginAtZero:true, suggestedMax: f.meta, grid:{ color:"#eef0f3" }, ticks:{ font:{ size:11 } } },
-            y: { grid:{ display:false }, ticks:{ font:{ size:11, weight:600 } } }
-          }
-        }
-      });
-    }catch(e){
-      console.error("Error creando grafica SFOR:", e);
-    }
-  }
+  await crearGraficaSfor("chart-sfor", "chartSfor");
 
   document.getElementById("fer-meta").addEventListener("change", e => { f.meta = clamp0(e.target.value); });
   document.querySelectorAll("[data-sfor]").forEach(inp => {
@@ -648,9 +645,50 @@ function colorHexPct(p){
   return "#dc2626";
 }
 
-function crearDona(canvasId, p, sizePx){
+async function crearGraficaSfor(canvasId, windowKey){
   const ctx = document.getElementById(canvasId);
   if(!ctx) return null;
+  if(window[windowKey]){ try{ window[windowKey].destroy(); }catch(e){} }
+  const listo = await esperarChart();
+  if(!listo){ console.error("Chart.js no cargo a tiempo para", canvasId); return null; }
+  try{
+    const f = estado.ferretero;
+    const valores = ETAPAS_SFOR.map(e => f.etapas[e] || 0);
+    const colores = valores.map(v => colorHexPct(pct(v, f.meta)));
+    window[windowKey] = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels: ETAPAS_SFOR.map(e => ETAPAS_SFOR_LABEL[e]),
+        datasets: [{
+          data: valores,
+          backgroundColor: colores,
+          borderRadius: 6,
+          maxBarThickness: 28
+        }]
+      },
+      options: {
+        indexAxis: "y",
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display:false } },
+        scales: {
+          x: { beginAtZero:true, suggestedMax: f.meta, grid:{ color:"#eef0f3" }, ticks:{ font:{ size:11 } } },
+          y: { grid:{ display:false }, ticks:{ font:{ size:11, weight:600 } } }
+        }
+      }
+    });
+    return window[windowKey];
+  }catch(e){
+    console.error("Error creando grafica SFOR:", e);
+    return null;
+  }
+}
+
+async function crearDona(canvasId, p, sizePx){
+  const ctx = document.getElementById(canvasId);
+  if(!ctx) return null;
+  const listo = await esperarChart();
+  if(!listo){ console.error("Chart.js no cargo a tiempo para", canvasId); return null; }
   try{
     const color = colorHexPct(p);
     const chart = new Chart(ctx, {
@@ -691,12 +729,12 @@ function moduloMini(id, icono, titulo, pct_, sub, franjaColor, bgIcono, colorIco
   </div>`;
 }
 
-function renderResumen(){
+async function renderResumen(){
   const pPick = pct(estado.picking.avanceTurno, estado.picking.metaTurno);
   const pCam = pct(estado.camionetas.avanceTurno, estado.camionetas.metaTurno);
   const hoy = HOY();
-  const albRezago = estado.albaranes.filter(a => a.fecha !== hoy).length;
-  const albHoy = estado.albaranes.filter(a => a.fecha === hoy).length;
+  const albAtraso2 = estado.albaranes.filter(a => calcularAntiguedad(a.fecha).dias >= 2).length;
+  const albHoy = estado.albaranes.filter(a => calcularAntiguedad(a.fecha).dias === 0).length;
   const albAvance = estado.albaranes.length ? Math.round(estado.albaranes.reduce((s,a)=>s+(a.avance||0),0)/estado.albaranes.length) : 0;
   const unidadesActivas = estado.embarques.unidades.length;
   const unidadesAvgPct = unidadesActivas ? Math.round(estado.embarques.unidades.reduce((s,u) => {
@@ -727,24 +765,111 @@ function renderResumen(){
     </div>
   </div>`;
 
-  html += `<div class="grid2">`;
-  html += moduloMini("dona-picking", "ti-package", "Picking", pPick, estado.picking.avanceTurno+"/"+estado.picking.metaTurno, "var(--accent)", "var(--red-bg)", "var(--accent)");
-  html += moduloMini("dona-albaranes", "ti-file-text", "Albaranes", albAvance, albRezago+" rezago, "+albHoy+" hoy", "var(--truper-amarillo)", "var(--amber-bg)", "#b45309");
-  html += moduloMini("dona-camionetas", "ti-truck-delivery", "Camionetas", pCam, estado.camionetas.avanceTurno+"/"+estado.camionetas.metaTurno, "var(--accent)", "var(--red-bg)", "var(--accent)");
-  html += moduloMini("dona-ferretero", "ti-tool", "Ferretero", fPct, estado.ferretero.etapas.cerradas+"/"+estado.ferretero.meta, "var(--truper-amarillo)", "var(--amber-bg)", "#b45309");
-  html += `</div>`;
+  const horasPick = Object.keys(estado.picking.horas).map(Number).sort((a,b)=>a-b);
+  let barrasPickHtml = "";
+  if(horasPick.length){
+    const maxH = Math.max(...horasPick.map(h => estado.picking.horas[h]||0), 1);
+    barrasPickHtml = `<div style="display:flex;gap:6px;align-items:flex-end;height:48px;padding:0 2px">`;
+    horasPick.slice(-8).forEach(h => {
+      const v = estado.picking.horas[h] || 0;
+      const alturaPct = Math.max(8, Math.round((v / maxH) * 100));
+      const esActual = h === horaActual();
+      barrasPickHtml += `<div style="flex:1;background:${esActual ? "var(--accent)" : "var(--red-bg)"};border-radius:4px 4px 0 0;height:${alturaPct}%" title="${h}:00 — ${v}"></div>`;
+    });
+    barrasPickHtml += `</div><div class="sub" style="text-align:center;margin-top:4px">avance por hora del turno</div>`;
+  }
+
+  html += `<div class="card" style="border-top:3px solid var(--accent)">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+      <div style="width:40px;height:40px;flex:0 0 auto;background:var(--red-bg);border-radius:10px;display:flex;align-items:center;justify-content:center">
+        <i class="ti ti-package" style="font-size:22px;color:var(--accent)"></i>
+      </div>
+      <div style="flex:1">
+        <div class="row"><span class="label">Picking</span><span class="big" style="font-size:18px;color:${colorPct(pPick)}">${pPick}%</span></div>
+        <div class="sub">${estado.picking.avanceTurno} de ${estado.picking.metaTurno} movimientos</div>
+      </div>
+    </div>
+    ${barrasPickHtml}
+  </div>`;
+
+  html += `<div class="card" style="border-top:3px solid var(--truper-amarillo)">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+      <div style="width:40px;height:40px;flex:0 0 auto;background:var(--amber-bg);border-radius:10px;display:flex;align-items:center;justify-content:center">
+        <i class="ti ti-file-text" style="font-size:22px;color:#b45309"></i>
+      </div>
+      <div style="flex:1">
+        <div class="row"><span class="label">Albaranes</span><span class="big" style="font-size:18px;color:${colorPct(albAvance)}">${albAvance}%</span></div>
+        <div class="sub">${estado.albaranes.length} totales en el turno</div>
+      </div>
+    </div>
+    <div class="grid2">
+      <div style="background:var(--red-bg);border-radius:10px;padding:8px;text-align:center">
+        <div style="font-size:18px;font-weight:800;color:var(--red)">${albAtraso2}</div>
+        <div class="sub" style="font-size:10px">urgentes</div>
+      </div>
+      <div style="background:var(--green-bg);border-radius:10px;padding:8px;text-align:center">
+        <div style="font-size:18px;font-weight:800;color:var(--green)">${albHoy}</div>
+        <div class="sub" style="font-size:10px">de hoy</div>
+      </div>
+    </div>
+  </div>`;
+
+  let unidadesBarrasHtml = "";
+  if(unidadesActivas){
+    unidadesBarrasHtml = `<div style="display:flex;flex-direction:column;gap:6px;margin-top:10px">`;
+    estado.embarques.unidades.slice(0, 6).forEach(u => {
+      const vals = ETAPAS_EMBARQUE.map(e => u.etapas[e]||0);
+      const maxV = Math.max(...vals, 0);
+      const etiqueta = (u.folio || u.tipo || "unidad").substring(0, 8);
+      unidadesBarrasHtml += `<div style="display:flex;align-items:center;gap:8px">
+        <span class="sub" style="width:56px;flex:0 0 auto;font-size:10px">${etiqueta}</span>
+        <div style="flex:1;height:8px;background:var(--panel2);border-radius:4px;overflow:hidden">
+          <div style="width:${maxV}%;height:100%;background:${colorHexPct(maxV)}"></div>
+        </div>
+      </div>`;
+    });
+    unidadesBarrasHtml += `</div>`;
+  }
 
   html += `<div class="card" style="border-top:3px solid var(--accent)">
     <div style="display:flex;align-items:center;gap:12px">
-      <div style="width:48px;height:48px;flex:0 0 auto;background:var(--red-bg);border-radius:12px;display:flex;align-items:center;justify-content:center">
-        <i class="ti ti-truck" style="font-size:26px;color:var(--accent)"></i>
+      <div style="width:40px;height:40px;flex:0 0 auto;background:var(--red-bg);border-radius:10px;display:flex;align-items:center;justify-content:center">
+        <i class="ti ti-truck" style="font-size:22px;color:var(--accent)"></i>
       </div>
       <div style="flex:1">
-        <div class="row"><span class="label">Trailers / tortones activos</span><span class="big" style="font-size:20px">${unidadesActivas}</span></div>
-        <div class="sub" style="margin-top:2px">avance promedio de etapa: ${unidadesAvgPct}%</div>
+        <div class="row"><span class="label">Trailers / tortones</span><span class="big" style="font-size:18px">${unidadesActivas} activos</span></div>
+        <div class="sub">avance promedio ${unidadesAvgPct}%</div>
       </div>
     </div>
-    ${barra(unidadesAvgPct)}
+    ${unidadesBarrasHtml}
+  </div>`;
+
+  html += `<div class="card" style="border-top:3px solid var(--truper-amarillo)">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+      <div style="width:40px;height:40px;flex:0 0 auto;background:var(--amber-bg);border-radius:10px;display:flex;align-items:center;justify-content:center">
+        <i class="ti ti-truck-delivery" style="font-size:22px;color:#b45309"></i>
+      </div>
+      <div style="flex:1">
+        <div class="row"><span class="label">Camionetas</span><span class="big" style="font-size:18px;color:${colorPct(pCam)}">${pCam}%</span></div>
+        <div class="sub">${estado.camionetas.avanceTurno} de ${estado.camionetas.metaTurno} unidades</div>
+      </div>
+    </div>
+    ${barra(pCam)}
+  </div>`;
+
+  html += `<div class="card" style="border-top:3px solid var(--truper-amarillo)">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+      <div style="width:48px;height:48px;flex:0 0 auto;background:var(--amber-bg);border-radius:12px;display:flex;align-items:center;justify-content:center">
+        <i class="ti ti-tool" style="font-size:26px;color:#b45309"></i>
+      </div>
+      <div style="flex:1">
+        <div class="row"><span class="label">Rutas ferreteras</span><span class="big" style="font-size:20px;color:${colorPct(fPct)}">${fPct}%</span></div>
+        <div class="sub" style="margin-top:2px">${estado.ferretero.etapas.cerradas} cerradas de ${estado.ferretero.meta}</div>
+      </div>
+    </div>
+    <div style="position:relative;height:170px">
+      <canvas id="resumen-chart-sfor"></canvas>
+    </div>
   </div>`;
 
   document.getElementById("view-resumen").innerHTML = html;
@@ -758,10 +883,7 @@ function renderResumen(){
 
   destruirChartsResumen();
   crearDona("dona-general", general, 160);
-  crearDona("dona-picking", pPick, 84);
-  crearDona("dona-albaranes", albAvance, 84);
-  crearDona("dona-camionetas", pCam, 84);
-  crearDona("dona-ferretero", fPct, 84);
+  crearGraficaSfor("resumen-chart-sfor", "chartSforResumen");
 }
 
 /* ===== Render general y arranque ===== */
@@ -777,6 +899,17 @@ function renderAll(){
     const elU = document.getElementById("updatedAt");
     if(elU) elU.textContent = "actualizado " + fmtHora(estado.actualizado);
   }
+}
+
+function esperarChart(intentos){
+  return new Promise((resolve) => {
+    function check(n){
+      if(typeof Chart !== "undefined"){ resolve(true); return; }
+      if(n <= 0){ resolve(false); return; }
+      setTimeout(() => check(n-1), 150);
+    }
+    check(intentos || 20);
+  });
 }
 
 window.iniciarTablero = function(){
