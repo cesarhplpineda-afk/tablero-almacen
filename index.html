@@ -3,21 +3,30 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Tablero de operación de almacén</title>
+<title>Tablero de Almacen SFOR</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.44.0/iconfont/tabler-icons.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 <style>
   :root{
-    --bg:#0f1115;
-    --panel:#171a21;
-    --panel2:#1d212a;
-    --border:#2a2f3a;
-    --text:#e8eaed;
-    --text2:#9aa1ad;
-    --text3:#5f6675;
-    --accent:#3b82f6;
-    --green:#22c55e;
-    --amber:#f59e0b;
-    --red:#ef4444;
-    --radius:10px;
+    --bg:#f4f5f7;
+    --panel:#ffffff;
+    --panel2:#f7f8fa;
+    --border:#e3e6eb;
+    --text:#1a1d23;
+    --text2:#6b7280;
+    --text3:#9ca3af;
+    --accent:#e2241a;
+    --accent2:#b81d14;
+    --truper-amarillo:#f5c518;
+    --truper-negro:#1a1a1a;
+    --green:#16a34a;
+    --green-bg:#ecfdf3;
+    --amber:#d97706;
+    --amber-bg:#fffaeb;
+    --red:#dc2626;
+    --red-bg:#fef2f2;
+    --radius:14px;
+    --shadow:0 1px 2px rgba(16,24,40,.04), 0 1px 3px rgba(16,24,40,.06);
   }
   *{box-sizing:border-box;}
   body{
@@ -26,18 +35,19 @@
     background:var(--bg);
     color:var(--text);
     padding-bottom:80px;
+    -webkit-font-smoothing:antialiased;
   }
   header{
     position:sticky;top:0;z-index:20;
-    background:var(--bg);
-    border-bottom:1px solid var(--border);
-    padding:10px 14px;
+    background:var(--truper-negro);
+    border-bottom:3px solid var(--truper-amarillo);
+    padding:14px 16px 10px;
   }
   .hrow{display:flex;justify-content:space-between;align-items:center;gap:8px;}
-  h1{font-size:15px;font-weight:600;margin:0;}
-  .updated{font-size:11px;color:var(--text3);}
+  h1{font-size:17px;font-weight:800;margin:0;letter-spacing:-0.01em;color:#fff;}
+  .updated{font-size:11px;color:#9ca3af;font-weight:500;}
   nav{
-    display:flex;gap:6px;overflow-x:auto;margin-top:10px;padding-bottom:2px;
+    display:flex;gap:6px;overflow-x:auto;margin-top:12px;padding-bottom:4px;
     -webkit-overflow-scrolling:touch;
   }
   nav::-webkit-scrollbar{display:none;}
@@ -46,99 +56,104 @@
     background:var(--panel);
     color:var(--text2);
     border:1px solid var(--border);
-    border-radius:20px;
-    padding:7px 13px;
+    border-radius:10px;
+    padding:8px 14px;
     font-size:12.5px;
-    font-weight:500;
+    font-weight:600;
     white-space:nowrap;
+    box-shadow:var(--shadow);
   }
   nav button.active{
     background:var(--accent);
     color:#fff;
     border-color:var(--accent);
   }
-  main{padding:12px 14px;max-width:480px;margin:0 auto;}
+  main{padding:14px 16px;max-width:480px;margin:0 auto;}
   .view{display:none;}
   .view.active{display:block;}
   .card{
     background:var(--panel);
     border:1px solid var(--border);
     border-radius:var(--radius);
-    padding:14px;
-    margin-bottom:10px;
+    padding:16px;
+    margin-bottom:12px;
+    box-shadow:var(--shadow);
   }
-  .card h2{font-size:13px;font-weight:600;margin:0 0 10px;color:var(--text2);text-transform:uppercase;letter-spacing:.03em;}
+  .card h2{font-size:12px;font-weight:700;margin:0 0 12px;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;}
   .row{display:flex;justify-content:space-between;align-items:baseline;gap:8px;}
-  .big{font-size:22px;font-weight:700;}
-  .label{font-size:12px;color:var(--text2);}
-  .sub{font-size:12px;color:var(--text3);}
-  .bar{height:8px;background:var(--panel2);border-radius:4px;overflow:hidden;margin-top:6px;}
-  .bar > div{height:100%;border-radius:4px;}
+  .big{font-size:26px;font-weight:800;letter-spacing:-0.02em;}
+  .label{font-size:12.5px;color:var(--text2);font-weight:500;}
+  .sub{font-size:12.5px;color:var(--text3);}
+  .bar{height:9px;background:var(--panel2);border-radius:6px;overflow:hidden;margin-top:8px;}
+  .bar > div{height:100%;border-radius:6px;transition:width .3s ease;}
   .pill{
-    display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;
+    display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;
   }
-  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
   input, select{
     width:100%;
     background:var(--panel2);
     border:1px solid var(--border);
     color:var(--text);
-    border-radius:8px;
-    padding:9px 10px;
-    font-size:14px;
-  }
-  input:focus, select:focus{outline:2px solid var(--accent);outline-offset:1px;}
-  label{font-size:11.5px;color:var(--text2);display:block;margin-bottom:4px;}
-  button{
-    background:var(--panel2);
-    color:var(--text);
-    border:1px solid var(--border);
-    border-radius:8px;
+    border-radius:10px;
     padding:10px 12px;
-    font-size:13.5px;
+    font-size:14.5px;
     font-weight:500;
   }
+  input:focus, select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.12);}
+  label{font-size:11.5px;color:var(--text2);display:block;margin-bottom:5px;font-weight:600;}
+  button{
+    background:var(--panel);
+    color:var(--text);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:11px 14px;
+    font-size:13.5px;
+    font-weight:600;
+    box-shadow:var(--shadow);
+  }
   button.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
-  button.ghost{background:transparent;}
+  button.primary:active{background:var(--accent2);}
+  button.ghost{background:transparent;box-shadow:none;}
   button:active{transform:scale(0.98);}
-  .stepbtn{width:42px;height:42px;font-size:18px;font-weight:700;border-radius:8px;}
+  .stepbtn{width:46px;height:46px;font-size:20px;font-weight:700;border-radius:12px;}
   .toast{
-    position:fixed;bottom:14px;left:50%;transform:translateX(-50%);
-    background:var(--green);color:#06200f;padding:8px 16px;border-radius:20px;
+    position:fixed;bottom:18px;left:50%;transform:translateX(-50%);
+    background:var(--text);color:#fff;padding:10px 18px;border-radius:24px;
     font-size:13px;font-weight:600;opacity:0;transition:opacity .25s;pointer-events:none;
-    z-index:50;
+    z-index:50;box-shadow:0 4px 16px rgba(0,0,0,.16);
   }
   .toast.show{opacity:1;}
-  .unit-card{border-left:3px solid var(--accent);}
-  .stage-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:8px;}
-  .stage-chip{background:var(--panel2);border-radius:8px;padding:7px 9px;}
-  .stage-chip .nm{font-size:11px;color:var(--text2);}
-  .stage-chip .vl{font-size:14px;font-weight:600;}
+  .unit-card{border-left:4px solid var(--accent);border-radius:var(--radius);}
+  .stage-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px;}
+  .stage-chip{background:var(--panel2);border-radius:10px;padding:9px 11px;border:1px solid var(--border);}
+  .stage-chip .nm{font-size:11px;color:var(--text2);font-weight:600;}
+  .stage-chip .vl{font-size:14px;font-weight:700;}
   .lockbox{
-    background:var(--panel2);border:1px dashed var(--border);border-radius:var(--radius);
-    padding:18px;text-align:center;
+    background:var(--panel);border:1.5px dashed var(--border);border-radius:var(--radius);
+    padding:24px 18px;text-align:center;box-shadow:var(--shadow);
   }
-  .deleteBtn{color:var(--red);border-color:var(--red);}
-  .flexrow{display:flex;gap:8px;align-items:center;}
-  hr.sep{border:none;border-top:1px solid var(--border);margin:12px 0;}
-  .smallnote{font-size:11px;color:var(--text3);margin-top:4px;}
+  .deleteBtn{color:var(--red);border-color:#fbd5d5;}
+  .flexrow{display:flex;gap:10px;align-items:center;}
+  hr.sep{border:none;border-top:1px solid var(--border);margin:14px 0;}
+  .smallnote{font-size:11.5px;color:var(--text3);margin-top:6px;line-height:1.5;}
 </style>
 </head>
 <body>
 
 <header>
   <div class="hrow">
-    <h1 id="turnoTitle">Tablero de almacén</h1>
+    <h1 id="turnoTitle"><i class="ti ti-building-warehouse" style="margin-right:6px;color:var(--accent)"></i>Tablero de Almacen SFOR</h1>
     <span class="updated" id="updatedAt">sin actualizar</span>
   </div>
   <nav id="tabs">
-    <button data-view="resumen" class="active">Resumen</button>
-    <button data-view="picking">Picking</button>
-    <button data-view="albaranes">Albaranes</button>
-    <button data-view="embarques">Trailers/Tortones</button>
-    <button data-view="camionetas">Camionetas</button>
-    <button data-view="ferretero">Ferretero</button>
-    <button data-view="ciclos">Tiempos ciclo</button>
+    <button data-view="resumen" class="active"><i class="ti ti-layout-dashboard" style="margin-right:5px"></i>Resumen</button>
+    <button data-view="picking"><i class="ti ti-package" style="margin-right:5px"></i>Picking</button>
+    <button data-view="albaranes"><i class="ti ti-file-text" style="margin-right:5px"></i>Albaranes</button>
+    <button data-view="embarques"><i class="ti ti-truck" style="margin-right:5px"></i>Trailers/Tortones</button>
+    <button data-view="camionetas"><i class="ti ti-truck-delivery" style="margin-right:5px"></i>Camionetas</button>
+    <button data-view="ferretero"><i class="ti ti-tool" style="margin-right:5px"></i>Ferretero</button>
+    <button data-view="ciclos"><i class="ti ti-lock" style="margin-right:5px"></i>Tiempos ciclo</button>
   </nav>
 </header>
 
