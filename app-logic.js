@@ -447,30 +447,34 @@ function renderFerretero(){
   if(window.chartSfor){ try{ window.chartSfor.destroy(); }catch(e){} }
   const ctxSfor = document.getElementById("chart-sfor");
   if(ctxSfor){
-    const valores = ETAPAS_SFOR.map(e => f.etapas[e] || 0);
-    const colores = valores.map(v => colorHexPct(pct(v, f.meta)));
-    window.chartSfor = new Chart(ctxSfor, {
-      type: "bar",
-      data: {
-        labels: ETAPAS_SFOR.map(e => ETAPAS_SFOR_LABEL[e]),
-        datasets: [{
-          data: valores,
-          backgroundColor: colores,
-          borderRadius: 6,
-          maxBarThickness: 28
-        }]
-      },
-      options: {
-        indexAxis: "y",
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { display:false } },
-        scales: {
-          x: { beginAtZero:true, suggestedMax: f.meta, grid:{ color:"#eef0f3" }, ticks:{ font:{ size:11 } } },
-          y: { grid:{ display:false }, ticks:{ font:{ size:11, weight:600 } } }
+    try{
+      const valores = ETAPAS_SFOR.map(e => f.etapas[e] || 0);
+      const colores = valores.map(v => colorHexPct(pct(v, f.meta)));
+      window.chartSfor = new Chart(ctxSfor, {
+        type: "bar",
+        data: {
+          labels: ETAPAS_SFOR.map(e => ETAPAS_SFOR_LABEL[e]),
+          datasets: [{
+            data: valores,
+            backgroundColor: colores,
+            borderRadius: 6,
+            maxBarThickness: 28
+          }]
+        },
+        options: {
+          indexAxis: "y",
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display:false } },
+          scales: {
+            x: { beginAtZero:true, suggestedMax: f.meta, grid:{ color:"#eef0f3" }, ticks:{ font:{ size:11 } } },
+            y: { grid:{ display:false }, ticks:{ font:{ size:11, weight:600 } } }
+          }
         }
-      }
-    });
+      });
+    }catch(e){
+      console.error("Error creando grafica SFOR:", e);
+    }
   }
 
   document.getElementById("fer-meta").addEventListener("change", e => { f.meta = clamp0(e.target.value); });
@@ -647,25 +651,30 @@ function colorHexPct(p){
 function crearDona(canvasId, p, sizePx){
   const ctx = document.getElementById(canvasId);
   if(!ctx) return null;
-  const color = colorHexPct(p);
-  const chart = new Chart(ctx, {
-    type: "doughnut",
-    data: {
-      datasets: [{
-        data: [p, 100 - p],
-        backgroundColor: [color, "#eef0f3"],
-        borderWidth: 0
-      }]
-    },
-    options: {
-      cutout: "72%",
-      responsive: false,
-      plugins: { legend: { display:false }, tooltip: { enabled:false } },
-      animation: { duration: 500 }
-    }
-  });
-  chartsResumen.push(chart);
-  return chart;
+  try{
+    const color = colorHexPct(p);
+    const chart = new Chart(ctx, {
+      type: "doughnut",
+      data: {
+        datasets: [{
+          data: [p, 100 - p],
+          backgroundColor: [color, "#eef0f3"],
+          borderWidth: 0
+        }]
+      },
+      options: {
+        cutout: "72%",
+        responsive: false,
+        plugins: { legend: { display:false }, tooltip: { enabled:false } },
+        animation: { duration: 500 }
+      }
+    });
+    chartsResumen.push(chart);
+    return chart;
+  }catch(e){
+    console.error("Error creando dona:", e);
+    return null;
+  }
 }
 
 function moduloMini(id, icono, titulo, pct_, sub, franjaColor, bgIcono, colorIcono){
@@ -757,15 +766,16 @@ function renderResumen(){
 
 /* ===== Render general y arranque ===== */
 function renderAll(){
-  renderResumen();
-  renderSimpleHora("picking", "Picking", "movimientos");
-  renderAlbaranes();
-  renderEmbarques();
-  renderSimpleHora("camionetas", "Camionetas", "unidades");
-  renderFerretero();
-  renderCiclos();
+  try{ renderResumen(); }catch(e){ console.error("Error en renderResumen:", e); }
+  try{ renderSimpleHora("picking", "Picking", "movimientos"); }catch(e){ console.error("Error en renderSimpleHora picking:", e); }
+  try{ renderAlbaranes(); }catch(e){ console.error("Error en renderAlbaranes:", e); }
+  try{ renderEmbarques(); }catch(e){ console.error("Error en renderEmbarques:", e); }
+  try{ renderSimpleHora("camionetas", "Camionetas", "unidades"); }catch(e){ console.error("Error en renderSimpleHora camionetas:", e); }
+  try{ renderFerretero(); }catch(e){ console.error("Error en renderFerretero:", e); }
+  try{ renderCiclos(); }catch(e){ console.error("Error en renderCiclos:", e); }
   if(estado.actualizado){
-    document.getElementById("updatedAt").textContent = "actualizado " + fmtHora(estado.actualizado);
+    const elU = document.getElementById("updatedAt");
+    if(elU) elU.textContent = "actualizado " + fmtHora(estado.actualizado);
   }
 }
 
